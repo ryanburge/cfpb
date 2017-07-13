@@ -7,6 +7,7 @@ library(prophet)
 library(leaflet)
 library(viridis)
 library(spdplyr)
+library(ggalt)
 
 ## Read in the Data and Clean it
 con <- read_csv("D://cfpb/Consumer_Complaints.csv") %>%  
@@ -22,11 +23,15 @@ p1 %>% ggplot(., aes(x=reorder(company,n), y=n)) +
   theme(plot.title = element_text(hjust = 0.5)) + 
   theme(text=element_text(size=22, family="KerkisSans"))
 
+ggsave(file="most_per_company.png", type = "cairo-png", width = 20, height =12)
+
 
 con %>% group_by(company) %>% count(product) %>% filter(n >100) %>% arrange(-n)
 
 con$diff_date <- as.Date(as.character(con$date_received), format = "%m/%d/%Y")-
                            as.Date(as.character(con$date_sent_to_company), format = "%m/%d/%Y")
+
+
 
 plot <- data.frame("label" = c("Two Days or Less", "Three Days or More"), pct = c(68.9, 31.1))
 
@@ -35,6 +40,9 @@ ggplot(plot, aes(x=reorder(label, -pct), y=pct/100)) + geom_col(fill = "firebric
   labs(x= "", y= "Percent of Complaints", title= "Claims Sent to Company")  +
   theme(plot.title = element_text(hjust = 0.5)) + 
   theme(text=element_text(size=28, family="KerkisSans"))
+
+ggsave(file="overall_time_to_respond.png", type = "cairo-png", width = 20, height =12)
+
 
 count <- con %>% count(company) %>%  arrange(-n) 
 
@@ -56,6 +64,8 @@ plot2 %>% na.omit() %>%
   labs(x= "Number of Days", y= "Total Number of Complaints", title="Do Larger Companies Get Complaints Faster?") +
   geom_segment(aes(x = 6, y = 60000, xend = 6.95, yend = 67000), arrow = arrow(length = unit(.5, "cm"))) + annotate("text", x = 5.75, y = 59000, label = "Bank of America")
 
+ggsave(file="bofa_outlier.png", type = "cairo-png", width = 20, height =12)
+
 plot3 <- con %>% 
   filter(company == "BANK OF AMERICA, NATIONAL ASSOCIATION") %>% 
   group_by(product) %>% 
@@ -69,6 +79,7 @@ ggplot(plot3, aes(x=reorder(product, mean), y=mean)) + geom_col(fill = "firebric
   theme(text=element_text(size=28, family="KerkisSans")) + coord_flip() + 
   geom_hline(yintercept = mean((con$diff_date*-1), na.rm= TRUE), linetype = "longdash")
 
+ggsave(file="bofa_by_product.png", type = "cairo-png", width = 20, height =12)
 
 ## Making a Joyplot
 
@@ -87,6 +98,8 @@ ggplot(plot4,aes(x=(diff_date*-1), y=product, group=product,  height=..density..
   labs(x= "Days to Transfer Claim", y= "Type of Product", title= "Which Complaints Take the Longest?")  +
   theme(plot.title = element_text(hjust = 0.5)) + 
   theme(text=element_text(size=28, family="KerkisSans")) + theme(legend.position="none")
+
+ggsave(file="bofa_joyplot.png", type = "cairo-png", width = 20, height =12)
 
 
 plot5 <- con %>% 
@@ -125,6 +138,11 @@ gg <- gg + geom_text(data=filter(plot6, product=="Mortgage"),
 
 gg <- gg +  theme(text=element_text(size=18, family="KerkisSans"))
 
+gg
+
+ggsave(file="barbell_plot.png", type = "cairo-png", width = 20, height =12)
+
+
 ## Making Predictions 
 
 con$ds <- as.Date(as.character(con$date_received), format = "%m/%d/%Y")
@@ -137,12 +155,14 @@ plot(m, forecast)
 prophet_plot_components(m, forecast)
 
 ggplot(forecast, aes(x= ds, y= yhat)) + 
-  geom_line(aes(y = yhat), size =.025) +
+  geom_line(aes(y = yhat), size =.25) +
   xlab("Date") + ylab("Projected Number of Complaints") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(text=element_text(size=18, family="KerkisSans")) +
+  theme(text=element_text(size=22, family="KerkisSans")) +
   theme(panel.background = element_rect(fill = "gray77")) +
   ggtitle("Using Facebook's Prophet to make Predictions") + geom_smooth(se = FALSE)
+
+ggsave(file="full_prophet_time.png", type = "cairo-png", width = 20, height =12)
 
 forecast$year <- format(as.Date(forecast$ds, format="%Y/%m/%d"),"%Y")
 forecast %>% group_by(year) %>% summarise(mean = mean(yhat))  
@@ -156,12 +176,25 @@ forecast %>% filter(date > "2017-07-17" & date <"2018-07-17") %>% summarise(sum 
 forecast %>% 
   filter(date > "2017-07-17" & date <"2018-07-17") %>% 
   ggplot(., aes(x= ds, y= yhat)) + 
-  geom_line(aes(y = yhat), size =.025) +
+  geom_line(aes(y = yhat), size =.5) +
   xlab("Date") + ylab("Projected Number of Complaints") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(text=element_text(size=18, family="KerkisSans")) +
+  theme(text=element_text(size=22, family="KerkisSans")) +
   theme(panel.background = element_rect(fill = "gray77")) +
   ggtitle("Using Facebook's Prophet to make Predictions") + geom_smooth(se = FALSE)
+
+ggsave(file="prophet_next_year.png", type = "cairo-png", width = 20, height =12)
+
+con$year <- format(as.Date(con$date_received, format="%d/%m/%Y"),"%Y")
+
+yearplot <- con %>% group_by(year) %>% 
+  summarise(diff = mean(diff_date, na.rm= TRUE)) %>% 
+  mutate(diff = as.numeric((round(diff,2)*-1))) %>% 
+  na.omit()
+
+ggplot(yearplot, aes(x=year, y=diff)) +  geom_col()
+
+
 
 ## Making a Map
 
