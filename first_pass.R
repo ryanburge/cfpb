@@ -237,5 +237,15 @@ leaflet(map) %>%
 
 
 
+table1 <- con %>% 
+  filter(company == "BANK OF AMERICA, NATIONAL ASSOCIATION") %>% 
+  tabyl(product) %>% mutate(pct =percent*100) %>% select(-n, -percent)
 
+
+t1 <- data.frame("Everything Else", 6.05)
+names(t1) <- c("product", "pct")
+t2 <- rbind(table1, t1)
+
+
+t2 %>% filter(pct >5) %>% ggplot(., aes(x=reorder(product, -pct), y= pct)) + geom_col() 
 
