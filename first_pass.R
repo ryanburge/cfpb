@@ -23,7 +23,7 @@ p1 %>% ggplot(., aes(x=reorder(company,n), y=n)) +
   theme(plot.title = element_text(hjust = 0.5)) + 
   theme(text=element_text(size=22, family="KerkisSans"))
 
-ggsave(file="most_per_company.png", type = "cairo-png", width = 20, height =12)
+ggsave(file="most_per_company.png", type = "cairo-png", width = 24, height =12)
 
 
 con %>% group_by(company) %>% count(product) %>% filter(n >100) %>% arrange(-n)
@@ -41,7 +41,26 @@ ggplot(plot, aes(x=reorder(label, -pct), y=pct/100)) + geom_col(fill = "firebric
   theme(plot.title = element_text(hjust = 0.5)) + 
   theme(text=element_text(size=28, family="KerkisSans"))
 
-ggsave(file="overall_time_to_respond.png", type = "cairo-png", width = 20, height =12)
+ggsave(file="overall_time_to_respond.png", type = "cairo-png", width = 24, height =12)
+
+
+time <- c("5 Days", "15 Days", "30 Days", "50 Days", "100 Days", "500 Days", "1000 Days")
+claims <- c(127692, 50299, 28740, 15022, 10527, 7216, 7055)
+
+tail <- data.frame(time, claims)
+tail$time <- factor(tail$time, levels=unique(tail$time))
+
+tail <- tail %>% mutate(new =claims/808618)
+
+
+ggplot(tail, aes(x=reorder(time, -new), y=new)) + geom_col(fill = "firebrick1", color = "black") + 
+  scale_y_continuous(labels = scales::percent) +
+  labs(x= "Time Being Held", y= "% of Complaints Still Being Processed", title= "The Distribution Is Long Tailed")  +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(text=element_text(size=28, family="KerkisSans"))
+
+ggsave(file="time_being_held.png", type = "cairo-png", width = 24, height =12)
+
 
 
 count <- con %>% count(company) %>%  arrange(-n) 
@@ -95,11 +114,11 @@ ggplot(plot4,aes(x=(diff_date*-1), y=product, group=product,  height=..density..
   geom_joy(scale=4, alpha =0.6) +
   scale_y_discrete(expand=c(0.01, 0)) +
   scale_x_continuous(expand=c(0, 0), limits = c(0,400)) + 
-  labs(x= "Days to Transfer Claim", y= "Type of Product", title= "Which Complaints Take the Longest?")  +
+  labs(x= "Days to Transfer Claim", y= "Type of Product", title= "Distribution of Processing Time for Bank of America")  +
   theme(plot.title = element_text(hjust = 0.5)) + 
   theme(text=element_text(size=28, family="KerkisSans")) + theme(legend.position="none")
 
-ggsave(file="bofa_joyplot.png", type = "cairo-png", width = 20, height =12)
+ggsave(file="bofa_joyplot.png", type = "cairo-png", width = 24, height =12)
 
 
 plot5 <- con %>% 
@@ -136,7 +155,7 @@ gg <- gg + geom_text(data=filter(plot6, product=="Mortgage"),
                      aes(x=Overall, y=product, label="All Others"),
                      color="firebrick1", size=3, vjust=-2, fontface="bold", family="Calibri")
 
-gg <- gg +  theme(text=element_text(size=18, family="KerkisSans"))
+gg <- gg +  theme(text=element_text(size=22, family="KerkisSans"))
 
 gg
 
@@ -247,5 +266,81 @@ names(t1) <- c("product", "pct")
 t2 <- rbind(table1, t1)
 
 
-t2 %>% filter(pct >5) %>% ggplot(., aes(x=reorder(product, -pct), y= pct)) + geom_col() 
+t2 %>% filter(pct >5) %>% ggplot(., aes(x=reorder(product, -pct), y= pct/100)) + geom_col(fill = "firebrick1", color = "black") + 
+  labs(x= "", y= "Number of Days", title= "What Products Receive the Most Complaints?")  +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(text=element_text(size=28, family="KerkisSans")) + 
+  scale_y_continuous(labels = scales::percent)
+
+
+con %>% 
+  group_by(company, product) %>% 
+  count() %>% mutate(lower = tolower(company), capital= stri_trans_totitle(lower)) %>% select(-company, -product)
+
+t3 <- con %>% 
+  group_by(company, product) %>% 
+  count() %>% arrange(-n) %>% 
+  mutate(lower = tolower(company), capital= stri_trans_totitle(lower), new = paste(capital, product, sep = ", ")) %>%
+  head(5)
+
+t3 %>%  ggplot(., aes(x=reorder(new, n), y= n)) + geom_col(fill = "firebrick1", color = "black") + 
+  labs(x= "", y= "Number of Complaints", title= "What Products Receive the Most Complaints?")  +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(text=element_text(size=22, family="KerkisSans")) + coord_flip()
+
+ggsave(file="top_five_complaint.png", type = "cairo-png", width = 24, height =12)
+
+ 
+
+con %>% 
+  filter(company == "EQUIFAX, INC." & product == "Credit reporting") %>% 
+  summarise(mean = mean(diff_date, na.rm = TRUE))
+## 3.66 days
+
+con %>% 
+  filter(company == "EXPERIAN DELAWARE GP" & product == "Credit reporting") %>% 
+  summarise(mean = mean(diff_date, na.rm = TRUE))
+
+## 4.13 days
+
+con %>% 
+  filter(company == "BANK OF AMERICA, NATIONAL ASSOCIATION" & product == "Mortgage") %>% 
+  summarise(mean = mean(diff_date, na.rm = TRUE))
+
+## 10.3
+
+con %>% 
+  filter(company == "TRANSUNION INTERMEDIATE HOLDINGS, INC." & product == "Credit reporting") %>% 
+  summarise(mean = mean(diff_date, na.rm = TRUE))
+
+## 4.15 days
+
+con %>% 
+  filter(company == "WELLS FARGO BANK, NATIONAL ASSOCIATION" & product == "Mortgage") %>% 
+  summarise(mean = mean(diff_date, na.rm = TRUE))
+
+## 3.03 days
+
+
+product <- t3$new
+days <- c(3.66, 4.13, 10.3, 4.15, 3.03)
+t4 <- data.frame(product, days)
+
+t4$product <- factor(t4$product, levels=unique(t4$product))
+
+
+ggplot(t4, aes(x=product, y=days)) + geom_col(fill = "firebrick1", color = "black") + 
+  labs(x= "Company and Product", y= "Median Time to Process", title= "The Distribution Is Long Tailed")  +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(text=element_text(size=28, family="KerkisSans")) + coord_flip()
+
+ggsave(file="bofa_joyplot.png", type = "cairo-png", width = 24, height =12)
+
+
+ggsave(file="top_five_process_time", type = "cairo-png", width = 24, height =12)
+
+
+
+
+
 
